@@ -20,9 +20,16 @@ jobs:
       - run: cabal update
       - run: cabal build all
       - run: cabal test
-      - name: HLint
-        run: |
-          curl -sSL https://raw.github.com/ndmitchell/hlint/master/misc/run.sh | sh -s src test app
+
+  hlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/hlint-setup@v2
+      - uses: haskell-actions/hlint-run@v2
+        with:
+          path: '["engine/src", "engine/test", "engine/app"]'
+          fail-on: warning
 
   cockpit:
     runs-on: ubuntu-latest
