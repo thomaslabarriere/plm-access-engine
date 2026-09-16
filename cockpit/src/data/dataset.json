@@ -1,0 +1,257 @@
+{
+  "tree": [
+    {
+      "resource": "sat",
+      "parent": null
+    },
+    {
+      "resource": "power",
+      "parent": "sat"
+    },
+    {
+      "resource": "avionics",
+      "parent": "sat"
+    },
+    {
+      "resource": "cpu",
+      "parent": "avionics"
+    },
+    {
+      "resource": "radio",
+      "parent": "avionics"
+    }
+  ],
+  "principals": [
+    {
+      "id": "alice",
+      "groups": [
+        "eng"
+      ]
+    },
+    {
+      "id": "bob",
+      "groups": [
+        "contractor"
+      ]
+    },
+    {
+      "id": "carol",
+      "groups": [
+        "admin"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "admin-all",
+      "subject": {
+        "kind": "group",
+        "id": "admin"
+      },
+      "target": {
+        "kind": "all"
+      },
+      "permission": "admin",
+      "effect": "allow",
+      "priority": 10
+    },
+    {
+      "id": "eng-read",
+      "subject": {
+        "kind": "group",
+        "id": "eng"
+      },
+      "target": {
+        "kind": "subtree",
+        "id": "sat"
+      },
+      "permission": "read",
+      "effect": "allow",
+      "priority": 3
+    },
+    {
+      "id": "eng-write-av",
+      "subject": {
+        "kind": "group",
+        "id": "eng"
+      },
+      "target": {
+        "kind": "subtree",
+        "id": "avionics"
+      },
+      "permission": "write",
+      "effect": "allow",
+      "priority": 5
+    },
+    {
+      "id": "contractor-read",
+      "subject": {
+        "kind": "group",
+        "id": "contractor"
+      },
+      "target": {
+        "kind": "subtree",
+        "id": "sat"
+      },
+      "permission": "read",
+      "effect": "allow",
+      "priority": 3
+    },
+    {
+      "id": "cpu-classified",
+      "subject": {
+        "kind": "group",
+        "id": "contractor"
+      },
+      "target": {
+        "kind": "resource",
+        "id": "cpu"
+      },
+      "permission": "read",
+      "effect": "deny",
+      "priority": 6
+    }
+  ],
+  "newRules": [
+    {
+      "id": "admin-all",
+      "subject": {
+        "kind": "group",
+        "id": "admin"
+      },
+      "target": {
+        "kind": "all"
+      },
+      "permission": "admin",
+      "effect": "allow",
+      "priority": 10
+    },
+    {
+      "id": "eng-read",
+      "subject": {
+        "kind": "group",
+        "id": "eng"
+      },
+      "target": {
+        "kind": "subtree",
+        "id": "sat"
+      },
+      "permission": "read",
+      "effect": "allow",
+      "priority": 3
+    },
+    {
+      "id": "eng-write-av",
+      "subject": {
+        "kind": "group",
+        "id": "eng"
+      },
+      "target": {
+        "kind": "subtree",
+        "id": "avionics"
+      },
+      "permission": "write",
+      "effect": "allow",
+      "priority": 5
+    },
+    {
+      "id": "contractor-read",
+      "subject": {
+        "kind": "group",
+        "id": "contractor"
+      },
+      "target": {
+        "kind": "subtree",
+        "id": "sat"
+      },
+      "permission": "read",
+      "effect": "allow",
+      "priority": 3
+    },
+    {
+      "id": "cpu-classified",
+      "subject": {
+        "kind": "group",
+        "id": "contractor"
+      },
+      "target": {
+        "kind": "resource",
+        "id": "cpu"
+      },
+      "permission": "read",
+      "effect": "deny",
+      "priority": 6
+    },
+    {
+      "id": "contractor-write-NEW",
+      "subject": {
+        "kind": "group",
+        "id": "contractor"
+      },
+      "target": {
+        "kind": "subtree",
+        "id": "sat"
+      },
+      "permission": "write",
+      "effect": "allow",
+      "priority": 4
+    }
+  ],
+  "gold": [
+    {
+      "principal": "alice",
+      "resource": "cpu",
+      "permission": "read",
+      "expected": true
+    },
+    {
+      "principal": "alice",
+      "resource": "cpu",
+      "permission": "write",
+      "expected": true
+    },
+    {
+      "principal": "bob",
+      "resource": "cpu",
+      "permission": "read",
+      "expected": false
+    },
+    {
+      "principal": "bob",
+      "resource": "power",
+      "permission": "read",
+      "expected": true
+    },
+    {
+      "principal": "bob",
+      "resource": "avionics",
+      "permission": "write",
+      "expected": false
+    },
+    {
+      "principal": "carol",
+      "resource": "sat",
+      "permission": "delete",
+      "expected": true
+    },
+    {
+      "principal": "alice",
+      "resource": "power",
+      "permission": "write",
+      "expected": false
+    }
+  ],
+  "resources": [
+    "sat",
+    "power",
+    "avionics",
+    "cpu",
+    "radio"
+  ],
+  "permissions": [
+    "read",
+    "write",
+    "delete",
+    "admin"
+  ]
+}

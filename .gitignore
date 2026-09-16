@@ -1,0 +1,19 @@
+# Haskell
+dist-newstyle/
+*.hi
+*.o
+.ghc.environment.*
+cabal.project.local*
+
+# Node / TypeScript
+node_modules/
+cockpit/dist/
+*.tsbuildinfo
+
+# Nix
+result
+result-*
+
+# misc
+.DS_Store
+.env
