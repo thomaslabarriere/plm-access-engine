@@ -17,6 +17,7 @@ module PLM.Types
   , Principal (..)
   , ProductTree (..)
   , emptyTree
+  , treeResources
   , ancestors
   , isDescendantOf
   ) where
@@ -24,6 +25,7 @@ module PLM.Types
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Text (Text)
 
 newtype PrincipalId = PrincipalId Text deriving (Eq, Ord, Show)
@@ -60,7 +62,7 @@ data Rule = Rule
   , rulePermission :: Permission
   , ruleEffect     :: Effect
   , rulePriority   :: Int
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Show)
 
 -- | A principal and the groups it belongs to.
 data Principal = Principal
@@ -76,15 +78,19 @@ newtype ProductTree = ProductTree (Map ResourceId (Maybe ResourceId))
 emptyTree :: ProductTree
 emptyTree = ProductTree Map.empty
 
+-- | Every resource named in the tree.
+treeResources :: ProductTree -> [ResourceId]
+treeResources (ProductTree parents) = Map.keys parents
+
 -- | The ancestors of a resource, nearest first, excluding the resource itself.
 -- Cycles or unknown parents terminate the walk safely (total function).
 ancestors :: ProductTree -> ResourceId -> [ResourceId]
-ancestors (ProductTree parents) = go []
+ancestors (ProductTree parents) = go Set.empty
   where
     go seen rid =
       case Map.lookup rid parents of
         Just (Just parent)
-          | parent `notElem` seen -> parent : go (rid : seen) parent
+          | not (parent `Set.member` seen) -> parent : go (Set.insert rid seen) parent
         _ -> []
 
 -- | Is @child@ equal to or beneath @ancestor@ in the tree?
