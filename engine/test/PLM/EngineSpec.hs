@@ -1,25 +1,27 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | Property-based and example specs for the access engine.
 --
 -- The QuickCheck properties are the point: they state invariants a PLM access
 -- system must never violate (default-deny, deny-overrides, "adding a deny can
 -- never grant", order-independence of the decision), and generate hundreds of
--- rule sets over a small product tree to try to break them.
+-- rule sets over generated product trees — including cyclic and dangling ones —
+-- to try to break them. The 'Arbitrary' instances live in "PLM.Arbitrary".
 module PLM.EngineSpec (spec) where
 
+import Data.Maybe (isNothing)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import Data.Map.Strict (fromList)
 import Test.Hspec
 import Test.QuickCheck
 
+import PLM.Arbitrary ()
 import PLM.Engine
 import PLM.Types
 
--- A small fixed universe so generated rule sets are dense and meaningful.
+-- A small fixed universe for the examples.
 -- Tree:  root -> a -> c ,  root -> b
 root, nodeA, nodeB, nodeC :: ResourceId
 root = ResourceId "root"
@@ -35,37 +37,6 @@ testTree = ProductTree (fromList
   , (nodeC, Just nodeA)
   ])
 
-resources :: [ResourceId]
-resources = [root, nodeA, nodeB, nodeC]
-
-instance Arbitrary Permission where arbitrary = arbitraryBoundedEnum
-instance Arbitrary Effect where arbitrary = elements [Allow, Deny]
-
-instance Arbitrary ResourceId where arbitrary = elements resources
-instance Arbitrary PrincipalId where
-  arbitrary = elements (map (PrincipalId . T.pack) ["p1", "p2", "p3"])
-instance Arbitrary GroupId where
-  arbitrary = elements (map (GroupId . T.pack) ["g1", "g2"])
-
-instance Arbitrary Subject where
-  arbitrary = oneof [SubjPrincipal <$> arbitrary, SubjGroup <$> arbitrary]
-
-instance Arbitrary Target where
-  arbitrary = oneof [TResource <$> arbitrary, TSubtree <$> arbitrary, pure TAll]
-
-instance Arbitrary Principal where
-  arbitrary = Principal <$> arbitrary <*> (Set.fromList <$> sublistOf allGroups)
-    where allGroups = map (GroupId . T.pack) ["g1", "g2"]
-
-instance Arbitrary Rule where
-  arbitrary = Rule . RuleId . T.pack . show
-    <$> (arbitrary :: Gen Int)
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> choose (0, 3)
-
 -- Helpers to build applicable rules in the examples.
 mkRule :: String -> Subject -> Target -> Permission -> Effect -> Int -> Rule
 mkRule rid = Rule (RuleId (T.pack rid))
@@ -75,31 +46,49 @@ p1 = Principal (PrincipalId "p1") (Set.fromList [GroupId "g1"])
 
 spec :: Spec
 spec = do
-  describe "decide (properties)" $ do
+  describe "decide (properties over generated trees)" $ do
     it "default-deny: no rules means no access" $
-      property $ \prin res perm ->
-        not (granted (decide testTree prin res perm []))
+      property $ \tree prin res perm ->
+        not (granted (decide (tree :: ProductTree) prin res perm []))
 
     it "adding a deny rule can never turn a denial into a grant" $
-      property $ \prin res perm rs (d0 :: Rule) ->
+      property $ \tree prin res perm rs (d0 :: Rule) ->
         let d = d0 {ruleEffect = Deny}
-            withDeny = decide testTree prin res perm (d : rs)
-            without  = decide testTree prin res perm rs
-        in granted withDeny ==> granted without
+            withDeny = granted (decide (tree :: ProductTree) prin res perm (d : rs))
+            without  = granted (decide tree prin res perm rs)
+        -- No discards: state the implication directly as (withDeny <= without)
+        -- over 'Bool''s ordering. 'classify' keeps the interesting case visible.
+        in classify withDeny "deny-still-granted" (withDeny <= without)
 
     it "the granted decision is independent of rule order" $
-      property $ \prin res perm rs ->
-        granted (decide testTree prin res perm rs)
-          === granted (decide testTree prin res perm (reverse rs))
+      property $ \tree prin res perm rs ->
+        granted (decide (tree :: ProductTree) prin res perm rs)
+          === granted (decide tree prin res perm (reverse rs))
 
     it "every rule in the trace genuinely applies to the request" $
-      property $ \prin res perm rs0 ->
+      property $ \tree prin res perm rs0 ->
         -- Re-id so ids are unique (the generator may repeat them), otherwise
         -- filtering the trace by id is ambiguous.
         let rs = zipWith (\i r -> r {ruleId = RuleId (T.pack (show (i :: Int)))}) [0 ..] rs0
-            d = decide testTree prin res perm rs
+            d = decide (tree :: ProductTree) prin res perm rs
             applied = filter ((`elem` applicable d) . ruleId) rs
-        in all (applies testTree prin res perm) applied
+        in all (applies tree prin res perm) applied
+
+    it "at an equal key a deny always beats an allow (deny-overrides)" $
+      property $ \prin res perm (Positive prio) ->
+        -- Both rules share priority, TAll and the same principal subject, so
+        -- their (priority, target-spec, subject-spec) keys are identical; only
+        -- the effect differs. Both always apply, so no discards.
+        let subj   = SubjPrincipal (principalId prin)
+            allowR = Rule (RuleId "a") subj TAll perm Allow prio
+            denyR  = Rule (RuleId "d") subj TAll perm Deny prio
+        in not (granted (decide testTree prin res perm [allowR, denyR]))
+
+    it "an unknown principal id is denied (fail closed) via decideFor" $
+      property $ \res perm rs ->
+        let ghost = PrincipalId "nobody"
+            d = decideFor testTree [p1] ghost res perm rs
+        in not (granted d) && isNothing (decidingRule d) && null (applicable d)
 
   describe "decide (examples)" $ do
     it "deny overrides allow at an identical key" $ do
@@ -129,3 +118,16 @@ spec = do
     it "a group rule applies to a principal in that group" $ do
       let r = mkRule "grp" (SubjGroup (GroupId "g1")) (TResource nodeA) Read Allow 1
       granted (decide testTree p1 nodeA Read [r]) `shouldBe` True
+
+    it "a principal-scoped allow beats a group-scoped deny at an equal key" $ do
+      -- Only the subject specificity separates them: principal > group, so the
+      -- principal's allow wins over the group's deny.
+      let grpDeny   = mkRule "g" (SubjGroup (GroupId "g1")) (TResource nodeA) Read Deny 1
+          prinAllow = mkRule "p" (SubjPrincipal (PrincipalId "p1")) (TResource nodeA) Read Allow 1
+      granted (decide testTree p1 nodeA Read [grpDeny, prinAllow]) `shouldBe` True
+
+    it "a non-empty rule set where nothing applies still denies" $ do
+      let other = mkRule "o" (SubjPrincipal (PrincipalId "p2")) (TResource nodeB) Read Allow 9
+          d = decide testTree p1 nodeA Write [other]
+      granted d `shouldBe` False
+      applicable d `shouldBe` []

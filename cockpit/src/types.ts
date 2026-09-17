@@ -62,8 +62,13 @@ export interface EvalResult {
   mismatches: GoldCase[];
 }
 
-/** Each entry is a [principalId, resourceId] pair newly granted WRITE. */
-export type Diff = [string, string][];
+/** Each entry is a (principal, resource, permission) newly granted by the change. */
+export interface DiffEntry {
+  principal: string;
+  resource: string;
+  permission: string;
+}
+export type Diff = DiffEntry[];
 
 /** Nested tree node built from the flat TreeNode list. */
 export interface NestedNode {

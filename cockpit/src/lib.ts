@@ -38,27 +38,29 @@ export function buildTree(flat: TreeNode[]): NestedNode[] {
   return roots;
 }
 
-/** Group diff pairs by principal into a readable structure. */
-export function groupDiffByPrincipal(diff: Diff): { principal: string; resources: string[] }[] {
-  const map = new Map<string, string[]>();
-  for (const [principal, resource] of diff) {
+/** Group diff entries by principal into a readable structure. */
+export function groupDiffByPrincipal(
+  diff: Diff
+): { principal: string; grants: { resource: string; permission: string }[] }[] {
+  const map = new Map<string, { resource: string; permission: string }[]>();
+  for (const { principal, resource, permission } of diff) {
     const list = map.get(principal) ?? [];
-    list.push(resource);
+    list.push({ resource, permission });
     map.set(principal, list);
   }
-  return [...map.entries()].map(([principal, resources]) => ({ principal, resources }));
+  return [...map.entries()].map(([principal, grants]) => ({ principal, grants }));
 }
 
 /** Human-readable one-line summary of the diff. */
 export function formatDiff(diff: Diff): string {
-  if (diff.length === 0) return "No new WRITE grants.";
-  const pairs = diff.map(([p, r]) => `${p}→${r}`).join(", ");
-  return `${diff.length} new WRITE grant${diff.length === 1 ? "" : "s"}: ${pairs}`;
+  if (diff.length === 0) return "No newly granted access.";
+  const cells = diff.map((e) => `${e.principal}→${e.resource} (${e.permission})`).join(", ");
+  return `${diff.length} newly granted cell${diff.length === 1 ? "" : "s"}: ${cells}`;
 }
 
 /** Whether the diff touches a given resource id. */
 export function diffIncludesResource(diff: Diff, resource: string): boolean {
-  return diff.some(([, r]) => r === resource);
+  return diff.some((e) => e.resource === resource);
 }
 
 /** Human phrasing of a subject/target rule descriptor. */

@@ -29,6 +29,7 @@ executable plm-access
     build-depends:    base
                     , bytestring
                     , containers
+                    , text
                     , aeson >=2.3 && <2.4
                     , plm-access-engine
 
@@ -49,7 +50,8 @@ test-suite spec
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Spec.hs
-    other-modules:    PLM.EngineSpec
+    other-modules:    PLM.Arbitrary
+                      PLM.EngineSpec
                       PLM.EvalSpec
                       PLM.JsonSpec
     build-depends:    base

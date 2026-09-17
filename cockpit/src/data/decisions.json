@@ -1,44 +1,10 @@
 {
-  "alice|sat|read": {
-    "applicable": [
-      "eng-read"
-    ],
-    "decidingRule": "eng-read",
-    "granted": true
-  },
-  "alice|sat|write": {
+  "alice|avionics|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "alice|sat|delete": {
-    "applicable": [],
-    "decidingRule": null,
-    "granted": false
-  },
-  "alice|sat|admin": {
-    "applicable": [],
-    "decidingRule": null,
-    "granted": false
-  },
-  "alice|power|read": {
-    "applicable": [
-      "eng-read"
-    ],
-    "decidingRule": "eng-read",
-    "granted": true
-  },
-  "alice|power|write": {
-    "applicable": [],
-    "decidingRule": null,
-    "granted": false
-  },
-  "alice|power|delete": {
-    "applicable": [],
-    "decidingRule": null,
-    "granted": false
-  },
-  "alice|power|admin": {
+  "alice|avionics|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
@@ -57,12 +23,12 @@
     "decidingRule": "eng-write-av",
     "granted": true
   },
-  "alice|avionics|delete": {
+  "alice|cpu|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "alice|avionics|admin": {
+  "alice|cpu|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
@@ -81,12 +47,34 @@
     "decidingRule": "eng-write-av",
     "granted": true
   },
-  "alice|cpu|delete": {
+  "alice|power|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "alice|cpu|admin": {
+  "alice|power|delete": {
+    "applicable": [],
+    "decidingRule": null,
+    "granted": false
+  },
+  "alice|power|read": {
+    "applicable": [
+      "eng-read"
+    ],
+    "decidingRule": "eng-read",
+    "granted": true
+  },
+  "alice|power|write": {
+    "applicable": [],
+    "decidingRule": null,
+    "granted": false
+  },
+  "alice|radio|admin": {
+    "applicable": [],
+    "decidingRule": null,
+    "granted": false
+  },
+  "alice|radio|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
@@ -105,56 +93,34 @@
     "decidingRule": "eng-write-av",
     "granted": true
   },
-  "alice|radio|delete": {
+  "alice|sat|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "alice|radio|admin": {
+  "alice|sat|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "bob|sat|read": {
+  "alice|sat|read": {
     "applicable": [
-      "contractor-read"
+      "eng-read"
     ],
-    "decidingRule": "contractor-read",
+    "decidingRule": "eng-read",
     "granted": true
   },
-  "bob|sat|write": {
+  "alice|sat|write": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "bob|sat|delete": {
+  "bob|avionics|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "bob|sat|admin": {
-    "applicable": [],
-    "decidingRule": null,
-    "granted": false
-  },
-  "bob|power|read": {
-    "applicable": [
-      "contractor-read"
-    ],
-    "decidingRule": "contractor-read",
-    "granted": true
-  },
-  "bob|power|write": {
-    "applicable": [],
-    "decidingRule": null,
-    "granted": false
-  },
-  "bob|power|delete": {
-    "applicable": [],
-    "decidingRule": null,
-    "granted": false
-  },
-  "bob|power|admin": {
+  "bob|avionics|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
@@ -171,12 +137,12 @@
     "decidingRule": null,
     "granted": false
   },
-  "bob|avionics|delete": {
+  "bob|cpu|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "bob|avionics|admin": {
+  "bob|cpu|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
@@ -194,12 +160,34 @@
     "decidingRule": null,
     "granted": false
   },
-  "bob|cpu|delete": {
+  "bob|power|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "bob|cpu|admin": {
+  "bob|power|delete": {
+    "applicable": [],
+    "decidingRule": null,
+    "granted": false
+  },
+  "bob|power|read": {
+    "applicable": [
+      "contractor-read"
+    ],
+    "decidingRule": "contractor-read",
+    "granted": true
+  },
+  "bob|power|write": {
+    "applicable": [],
+    "decidingRule": null,
+    "granted": false
+  },
+  "bob|radio|admin": {
+    "applicable": [],
+    "decidingRule": null,
+    "granted": false
+  },
+  "bob|radio|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
@@ -216,66 +204,36 @@
     "decidingRule": null,
     "granted": false
   },
-  "bob|radio|delete": {
+  "bob|sat|admin": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "bob|radio|admin": {
+  "bob|sat|delete": {
     "applicable": [],
     "decidingRule": null,
     "granted": false
   },
-  "carol|sat|read": {
+  "bob|sat|read": {
+    "applicable": [
+      "contractor-read"
+    ],
+    "decidingRule": "contractor-read",
+    "granted": true
+  },
+  "bob|sat|write": {
+    "applicable": [],
+    "decidingRule": null,
+    "granted": false
+  },
+  "carol|avionics|admin": {
     "applicable": [
       "admin-all"
     ],
     "decidingRule": "admin-all",
     "granted": true
   },
-  "carol|sat|write": {
-    "applicable": [
-      "admin-all"
-    ],
-    "decidingRule": "admin-all",
-    "granted": true
-  },
-  "carol|sat|delete": {
-    "applicable": [
-      "admin-all"
-    ],
-    "decidingRule": "admin-all",
-    "granted": true
-  },
-  "carol|sat|admin": {
-    "applicable": [
-      "admin-all"
-    ],
-    "decidingRule": "admin-all",
-    "granted": true
-  },
-  "carol|power|read": {
-    "applicable": [
-      "admin-all"
-    ],
-    "decidingRule": "admin-all",
-    "granted": true
-  },
-  "carol|power|write": {
-    "applicable": [
-      "admin-all"
-    ],
-    "decidingRule": "admin-all",
-    "granted": true
-  },
-  "carol|power|delete": {
-    "applicable": [
-      "admin-all"
-    ],
-    "decidingRule": "admin-all",
-    "granted": true
-  },
-  "carol|power|admin": {
+  "carol|avionics|delete": {
     "applicable": [
       "admin-all"
     ],
@@ -296,14 +254,14 @@
     "decidingRule": "admin-all",
     "granted": true
   },
-  "carol|avionics|delete": {
+  "carol|cpu|admin": {
     "applicable": [
       "admin-all"
     ],
     "decidingRule": "admin-all",
     "granted": true
   },
-  "carol|avionics|admin": {
+  "carol|cpu|delete": {
     "applicable": [
       "admin-all"
     ],
@@ -324,14 +282,42 @@
     "decidingRule": "admin-all",
     "granted": true
   },
-  "carol|cpu|delete": {
+  "carol|power|admin": {
     "applicable": [
       "admin-all"
     ],
     "decidingRule": "admin-all",
     "granted": true
   },
-  "carol|cpu|admin": {
+  "carol|power|delete": {
+    "applicable": [
+      "admin-all"
+    ],
+    "decidingRule": "admin-all",
+    "granted": true
+  },
+  "carol|power|read": {
+    "applicable": [
+      "admin-all"
+    ],
+    "decidingRule": "admin-all",
+    "granted": true
+  },
+  "carol|power|write": {
+    "applicable": [
+      "admin-all"
+    ],
+    "decidingRule": "admin-all",
+    "granted": true
+  },
+  "carol|radio|admin": {
+    "applicable": [
+      "admin-all"
+    ],
+    "decidingRule": "admin-all",
+    "granted": true
+  },
+  "carol|radio|delete": {
     "applicable": [
       "admin-all"
     ],
@@ -352,14 +338,28 @@
     "decidingRule": "admin-all",
     "granted": true
   },
-  "carol|radio|delete": {
+  "carol|sat|admin": {
     "applicable": [
       "admin-all"
     ],
     "decidingRule": "admin-all",
     "granted": true
   },
-  "carol|radio|admin": {
+  "carol|sat|delete": {
+    "applicable": [
+      "admin-all"
+    ],
+    "decidingRule": "admin-all",
+    "granted": true
+  },
+  "carol|sat|read": {
+    "applicable": [
+      "admin-all"
+    ],
+    "decidingRule": "admin-all",
+    "granted": true
+  },
+  "carol|sat|write": {
     "applicable": [
       "admin-all"
     ],

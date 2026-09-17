@@ -230,16 +230,20 @@ export default function App() {
           </p>
           <div className="deciding" style={{ marginBottom: 4 }}>
             Proposed rule <code>contractor-write-NEW</code> (allow WRITE on subtree(sat)) newly grants
-            WRITE to {diff.length} (principal, resource) pair{diff.length === 1 ? "" : "s"}:
+            access on {diff.length} (principal, resource, permission) cell{diff.length === 1 ? "" : "s"},
+            found by diffing the whole tree × every permission:
           </div>
           {grouped.map((g) => (
             <div key={g.principal} style={{ margin: "6px 0" }}>
               <b className="mono">{g.principal}</b>
               <span className="pairs" style={{ display: "inline-flex", marginLeft: 8 }}>
-                {g.resources.map((r) => (
-                  <span key={r} className={"pair" + (r === CLASSIFIED_RESOURCE ? " cpu" : "")}>
-                    {r}
-                    {r === CLASSIFIED_RESOURCE ? " • classified" : ""}
+                {g.grants.map((gr) => (
+                  <span
+                    key={gr.resource + gr.permission}
+                    className={"pair" + (gr.resource === CLASSIFIED_RESOURCE ? " cpu" : "")}
+                  >
+                    {gr.resource} ({gr.permission})
+                    {gr.resource === CLASSIFIED_RESOURCE ? " • classified" : ""}
                   </span>
                 ))}
               </span>

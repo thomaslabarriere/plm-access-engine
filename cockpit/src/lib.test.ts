@@ -53,40 +53,50 @@ describe("buildTree", () => {
 });
 
 describe("groupDiffByPrincipal", () => {
-  it("groups resources under each principal", () => {
+  it("groups grants under each principal", () => {
     const diff: Diff = [
-      ["bob", "sat"],
-      ["bob", "cpu"],
-      ["ann", "radio"],
+      { principal: "bob", resource: "sat", permission: "write" },
+      { principal: "bob", resource: "cpu", permission: "write" },
+      { principal: "ann", resource: "radio", permission: "read" },
     ];
     const grouped = groupDiffByPrincipal(diff);
     expect(grouped).toEqual([
-      { principal: "bob", resources: ["sat", "cpu"] },
-      { principal: "ann", resources: ["radio"] },
+      {
+        principal: "bob",
+        grants: [
+          { resource: "sat", permission: "write" },
+          { resource: "cpu", permission: "write" },
+        ],
+      },
+      { principal: "ann", grants: [{ resource: "radio", permission: "read" }] },
     ]);
   });
 });
 
 describe("formatDiff", () => {
-  it("summarises multiple pairs", () => {
+  it("summarises multiple cells", () => {
     const diff: Diff = [
-      ["bob", "sat"],
-      ["bob", "cpu"],
+      { principal: "bob", resource: "sat", permission: "write" },
+      { principal: "bob", resource: "cpu", permission: "write" },
     ];
-    expect(formatDiff(diff)).toBe("2 new WRITE grants: bob→sat, bob→cpu");
+    expect(formatDiff(diff)).toBe(
+      "2 newly granted cells: bob→sat (write), bob→cpu (write)"
+    );
   });
   it("handles empty diff", () => {
-    expect(formatDiff([])).toBe("No new WRITE grants.");
+    expect(formatDiff([])).toBe("No newly granted access.");
   });
   it("uses singular for one grant", () => {
-    expect(formatDiff([["bob", "cpu"]])).toBe("1 new WRITE grant: bob→cpu");
+    expect(formatDiff([{ principal: "bob", resource: "cpu", permission: "write" }])).toBe(
+      "1 newly granted cell: bob→cpu (write)"
+    );
   });
 });
 
 describe("diffIncludesResource", () => {
   const diff: Diff = [
-    ["bob", "sat"],
-    ["bob", "cpu"],
+    { principal: "bob", resource: "sat", permission: "write" },
+    { principal: "bob", resource: "cpu", permission: "write" },
   ];
   it("detects a present resource", () => {
     expect(diffIncludesResource(diff, "cpu")).toBe(true);

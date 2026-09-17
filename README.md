@@ -30,11 +30,14 @@ the classified `cpu`**:
 
 ```
 $ plm-access diff  < change.json
-[["bob","sat"],["bob","power"],["bob","avionics"],["bob","cpu"],["bob","radio"]]
+[{"principal":"bob","resource":"cpu","permission":"write"},
+ {"principal":"bob","resource":"avionics","permission":"write"}, ...]
 ```
 
-That is the exact IP-leak an access engine must never wave through, surfaced from the
-engine's own decisions, not from anyone's assertion that the change was "safe."
+`diff` derives its own universe (every resource in the tree × every permission), so a
+widening cannot hide in a cell the caller forgot to ask about. That is the exact IP-leak
+an access engine must never wave through, surfaced from the engine's own decisions, not
+from anyone's assertion that the change was "safe."
 
 ## Correctness stated as properties
 
@@ -55,10 +58,11 @@ subtree allow reaches descendants, `Admin` subsumes every permission.
 # Engine (Haskell): build, property tests, hlint
 cd engine && cabal build all && cabal test && hlint src test app
 
-# The CLI speaks JSON (decide / eval / diff)
+# The CLI speaks JSON (decide / decisions / eval / diff)
 echo '{"tree":[...],"rules":[...],"principals":[...],"request":{...}}' | cabal run plm-access -- decide
 
-# Cockpit (React): a live view of the engine's output
+# Cockpit (React): a live view of the engine's output.
+# Its data files are regenerated FROM the engine (decisions/eval/diff), never hand-edited:
 cd ../cockpit && npm install && npm run dev
 
 # One reproducible toolchain (Aletiq runs on NixOS)

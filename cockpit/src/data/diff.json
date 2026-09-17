@@ -1,22 +1,27 @@
 [
-  [
-    "bob",
-    "sat"
-  ],
-  [
-    "bob",
-    "power"
-  ],
-  [
-    "bob",
-    "avionics"
-  ],
-  [
-    "bob",
-    "cpu"
-  ],
-  [
-    "bob",
-    "radio"
-  ]
+  {
+    "permission": "write",
+    "principal": "bob",
+    "resource": "avionics"
+  },
+  {
+    "permission": "write",
+    "principal": "bob",
+    "resource": "cpu"
+  },
+  {
+    "permission": "write",
+    "principal": "bob",
+    "resource": "power"
+  },
+  {
+    "permission": "write",
+    "principal": "bob",
+    "resource": "radio"
+  },
+  {
+    "permission": "write",
+    "principal": "bob",
+    "resource": "sat"
+  }
 ]

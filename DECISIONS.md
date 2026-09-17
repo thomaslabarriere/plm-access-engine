@@ -51,11 +51,54 @@ decisions/eval/diff and emits JSON, and the cockpit renders it.
 - **Why:** the engine must be the single source of truth for a decision. Re-implementing
   the logic in TypeScript to make a prettier UI would be the exact drift this design
   refuses. The cockpit's decision explorer is a pure key lookup into precomputed output.
+- **Enforced, not asserted:** the `plm-access decisions` subcommand regenerates the
+  cockpit's `decisions.json` (a batch over every principal × resource × permission), and
+  `eval`/`diff` produce the other data files, all from one dataset. The claim above is a
+  regeneration step, not a promise.
 
-## 6. A simulated store, not Postgres (yet)
+## 6. Fail closed, everywhere, through one resolver
+
+An access request naming a principal absent from the roster is default-denied, not
+fabricated into a group-less principal. `resolvePrincipal`/`decideFor` are the single
+path the CLI and the eval harness both use, so `decide`, `evaluate` and `diff` cannot
+disagree about an unknown id.
+
+- **Why:** the earlier version fabricated `Principal id mempty` on a miss, which failed
+  *open* (a principal-scoped allow still fired, group denies were skipped) — the exact
+  over-permission this engine exists to stop, and it disagreed with the eval harness.
+  Now a missing principal is a first-class deny, property-tested.
+
+## 7. `newlyGranted` derives its own universe
+
+The widening check does not trust caller-supplied resource/permission lists: it takes the
+resources from the tree and iterates every permission, so a widening onto a resource or
+permission a caller forgot to enumerate cannot slip past.
+
+## 8. A simulated store, not Postgres (yet)
 
 Rules and the tree live in memory / JSON. Aletiq uses PostgreSQL; the pure core is written
 so a Postgres adapter slots in behind it without touching `decide`.
+
+## 9. Scaling to millions of records (design sketch, not built)
+
+Today `decide` is `O(rules × tree-depth)` per query and recomputes each rule's key on
+every call — fine at the demo's 500 rules × 1000 nodes (~298 µs), not at Aletiq's stated
+"hundreds of rules over millions of records". The shape that scales, behind the same pure
+interface: index rules by their subtree root so a query only considers rules whose target
+covers the resource's ancestor path; precompute each resource's ancestor set once
+(`Map ResourceId (Set ResourceId)`); memoize rule ranking keys; and push the whole
+evaluation into the PostgreSQL adapter as an indexed query for the hot path, keeping the
+in-memory engine as the reference oracle the eval harness checks against. None of this is
+implemented here; the point is that the domain model does not have to change to get there.
+
+## A footgun worth stating: priority outranks specificity
+
+Conflict resolution ranks priority first, then specificity, then deny-overrides. So a
+broad high-priority `allow` beats a narrow low-priority classified `deny` — by design
+("priority lets an explicit exception win"), but it means a classified deny must be pinned
+in the top priority band, or the model must be changed to let deny win across priority
+tiers. A real deployment should lint for classified denies that a higher-priority allow
+can punch through.
 
 ## 7. What this does NOT prove
 
@@ -70,9 +113,11 @@ so a Postgres adapter slots in behind it without touching `decide`.
 
 I would rather state these than have a reviewer find them.
 
-## 8. The tests are mutation-checked
+## 10. The tests are mutation-checked
 
-A green suite means something only if it fails when the code breaks. Proof: flipping the
-deny-overrides tie-breaker in `PLM.Engine.pick` (preferring the allow on an equal key)
-makes the "deny overrides allow at an identical key" spec fail; reverting restores green.
-The property is guarding the invariant, not padding a number.
+A green suite means something only if it fails when the code breaks. Proof: flipping
+`Effect`'s ordering in `PLM.Types` (`data Effect = Allow | Deny` → `Deny | Allow`), which
+removes deny-overrides from the ranking key, reddens exactly the two specs that guard it
+("deny overrides allow at an identical key" and the generated-tree property "at an equal
+key a deny always beats an allow"); reverting restores green. The properties guard the
+invariant, not a coverage number.

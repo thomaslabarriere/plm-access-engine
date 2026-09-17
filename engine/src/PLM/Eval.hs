@@ -15,8 +15,6 @@ module PLM.Eval
   , newlyGranted
   ) where
 
-import qualified Data.Map.Strict as Map
-
 import PLM.Engine
 import PLM.Types
 
@@ -50,32 +48,35 @@ evaluate tree rules principals gold =
     , erMismatches = mismatches
     }
   where
-    byId = Map.fromList [(principalId p, p) | p <- principals]
-
+    -- Route through the shared resolver so an unknown principal fails closed
+    -- exactly as it does at the CLI, never as a crash.
     actual gc =
-      case Map.lookup (gcPrincipal gc) byId of
-        Nothing  -> False
-        Just prin -> granted (decide tree prin (gcResource gc) (gcPermission gc) rules)
+      granted (decideFor tree principals (gcPrincipal gc) (gcResource gc) (gcPermission gc) rules)
 
     mismatches = [gc | gc <- gold, actual gc /= gcExpected gc]
     total      = length gold
     correct    = total - length mismatches
 
--- | Every (principal, resource) that was denied @perm@ under @oldRules@ but is
--- granted it under @newRules@ — the access that a rule change silently widened.
+-- | Every (principal, resource, permission) that was denied under @oldRules@
+-- but is granted under @newRules@ — the access a rule change silently widened.
 -- An empty result means the change granted nothing new.
+--
+-- The scan is /complete/ by construction: it never trusts a caller-supplied
+-- shortlist. The resource universe is the whole product tree ('treeResources'),
+-- the principals are the roster, and every permission is checked
+-- (@[minBound .. maxBound]@). Each entry carries the permission it widened, so a
+-- reviewer sees exactly which right leaked, on which resource, for whom.
 newlyGranted
   :: ProductTree
   -> [Principal]
-  -> Permission
-  -> [ResourceId]
   -> [Rule]      -- ^ old rule set
   -> [Rule]      -- ^ new rule set
-  -> [(PrincipalId, ResourceId)]
-newlyGranted tree principals perm resources oldRules newRules =
-  [ (principalId prin, res)
+  -> [(PrincipalId, ResourceId, Permission)]
+newlyGranted tree principals oldRules newRules =
+  [ (principalId prin, res, perm)
   | prin <- principals
-  , res  <- resources
+  , res  <- treeResources tree
+  , perm <- [minBound .. maxBound]
   , not (granted (decide tree prin res perm oldRules))
   , granted (decide tree prin res perm newRules)
   ]

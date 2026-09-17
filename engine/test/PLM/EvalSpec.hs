@@ -63,17 +63,30 @@ spec = do
   describe "newlyGranted" $ do
     it "flags a rule change that silently widens access" $ do
       -- Old: nothing. New: a subtree allow reaching every resource under root.
+      -- The resource + permission universes are derived from the tree, so only
+      -- the widened (Read) permission appears, on every resource.
       let widen = mkRule (RuleId "wide") (SubjGroup (GroupId "g1")) (TSubtree root) Read Allow 1
-          leaks = newlyGranted testTree [p1] Read [root, nodeA, nodeC] [] [widen]
+          leaks = newlyGranted testTree [p1] [] [widen]
       leaks `shouldMatchList`
-        [ (PrincipalId "p1", root)
-        , (PrincipalId "p1", nodeA)
-        , (PrincipalId "p1", nodeC)
+        [ (PrincipalId "p1", root, Read)
+        , (PrincipalId "p1", nodeA, Read)
+        , (PrincipalId "p1", nodeC, Read)
+        ]
+
+    it "covers every permission, not just a caller-supplied one" $ do
+      -- An Admin allow widens all four permissions on the exact resource.
+      let widen = mkRule (RuleId "adm") (SubjPrincipal (PrincipalId "p1")) (TResource nodeA) Admin Allow 1
+          leaks = newlyGranted testTree [p1] [] [widen]
+      leaks `shouldMatchList`
+        [ (PrincipalId "p1", nodeA, Read)
+        , (PrincipalId "p1", nodeA, Write)
+        , (PrincipalId "p1", nodeA, Delete)
+        , (PrincipalId "p1", nodeA, Admin)
         ]
 
     it "is empty when the change only narrows access" $ do
       let wideAllow = mkRule (RuleId "wide") (SubjGroup (GroupId "g1")) (TSubtree root) Read Allow 1
           denyC     = mkRule (RuleId "denyC") (SubjPrincipal (PrincipalId "p1")) (TResource nodeC) Read Deny 5
           -- old grants everything under root; new adds a deny on nodeC (narrows).
-          leaks = newlyGranted testTree [p1] Read [root, nodeA, nodeC] [wideAllow] [wideAllow, denyC]
+          leaks = newlyGranted testTree [p1] [wideAllow] [wideAllow, denyC]
       leaks `shouldBe` []
