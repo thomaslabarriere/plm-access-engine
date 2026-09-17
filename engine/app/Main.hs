@@ -11,16 +11,19 @@
 -- > plm-access decisions < envelope.json  -> {"<pid>|<res>|<perm>": Decision}
 module Main (main) where
 
-import Data.Aeson (FromJSON (..), eitherDecode, encode, object, withObject, (.:), (.=))
+import Data.Aeson (FromJSON (..), eitherDecode, encode, object, withObject, (.:), (.:?), (.=))
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Lazy.Char8 as BLC
+import Data.Function (on)
+import Data.List (intercalate, nubBy)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
+import qualified Data.Text as T
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 
-import PLM.Engine (Decision, decide, decideFor)
+import PLM.Engine (Decision, decide, decideFor, unknownTargets)
 import PLM.Eval (GoldCase, evaluate, newlyGranted)
 import PLM.Json ()
 import PLM.Types
@@ -54,16 +57,24 @@ instance FromJSON EvalInput where
 
 -- | The @diff@ envelope: two rule sets over one tree/roster. The resource and
 -- permission universes are derived from the tree by 'newlyGranted', so the
--- caller supplies neither.
+-- caller supplies neither. The old set is read from @oldRules@ if present, else
+-- from the shared dataset's @rules@ field — so the project's @dataset.json@
+-- (which ships @rules@/@newRules@) diffs directly, with no hand rename. At
+-- least one of the two must be present; @newRules@ is always required.
 data DiffInput = DiffInput ProductTree [Principal] [Rule] [Rule]
 
 instance FromJSON DiffInput where
-  parseJSON = withObject "diff input" $ \o ->
-    DiffInput
-      <$> o .: "tree"
-      <*> o .: "principals"
-      <*> o .: "oldRules"
-      <*> o .: "newRules"
+  parseJSON = withObject "diff input" $ \o -> do
+    tree       <- o .: "tree"
+    principals <- o .: "principals"
+    mOld       <- o .:? "oldRules"
+    mRules     <- o .:? "rules"
+    oldRules   <- case (mOld, mRules) of
+      (Just rs, _)       -> pure rs
+      (Nothing, Just rs) -> pure rs
+      (Nothing, Nothing) -> fail "expected key \"oldRules\" or \"rules\" for the old rule set"
+    newRules   <- o .: "newRules"
+    pure (DiffInput tree principals oldRules newRules)
 
 -- | The @decisions@ envelope: a dataset without a request. The batch is taken
 -- over every principal x resource(from the tree) x permission.
@@ -112,18 +123,22 @@ emit = BLC.putStrLn
 -- unknown principal id fails closed (default-deny) exactly as it does in the
 -- reliability harness — never fabricated into an empty principal that grants.
 runDecide :: DecideInput -> IO ()
-runDecide (DecideInput tree rules principals (Request pid res perm)) =
+runDecide (DecideInput tree rules principals0 (Request pid res perm)) = do
+  guardTargets tree rules
+  let principals = dedupPrincipals principals0
   emit (encode (decideFor tree principals pid res perm rules))
 
 runEval :: EvalInput -> IO ()
-runEval (EvalInput tree rules principals gold) =
-  emit (encode (evaluate tree rules principals gold))
+runEval (EvalInput tree rules principals0 gold) =
+  emit (encode (evaluate tree rules (dedupPrincipals principals0) gold))
 
 -- | Emit each silently-widened grant as a JSON object
 -- @{"principal":..,"resource":..,"permission":..}@ (one entry per widened
 -- (principal, resource, permission), covering every permission).
 runDiff :: DiffInput -> IO ()
-runDiff (DiffInput tree principals oldRules newRules) =
+runDiff (DiffInput tree principals0 oldRules newRules) = do
+  guardTargets tree (oldRules <> newRules)
+  let principals = dedupPrincipals principals0
   emit (encode (map entry (newlyGranted tree principals oldRules newRules)))
   where
     entry (PrincipalId p, ResourceId r, perm) =
@@ -133,9 +148,12 @@ runDiff (DiffInput tree principals oldRules newRules) =
 -- @"<principal>|<resource>|<permission>"@, one 'Decision' per cell — the shape
 -- the cockpit loads as @decisions.json@.
 runDecisions :: BatchInput -> IO ()
-runDecisions (BatchInput tree rules principals) =
+runDecisions (BatchInput tree rules principals0) = do
+  guardTargets tree rules
   emit (encode (Map.fromList entries))
   where
+    principals = dedupPrincipals principals0
+
     entries :: [(Text, Decision)]
     entries =
       [ (cellKey (principalId prin) res perm, decide tree prin res perm rules)
@@ -154,6 +172,28 @@ permToken perm = case perm of
   Write  -> "write"
   Delete -> "delete"
   Admin  -> "admin"
+
+-- | Collapse a roster to one 'Principal' per id, keeping the /last/ occurrence
+-- and the original relative order. Without this a duplicated id would make
+-- @decisions@ (which iterates the list) emit two rows while @decide@ resolves to
+-- a single principal — the two views of the same dataset would disagree.
+dedupPrincipals :: [Principal] -> [Principal]
+dedupPrincipals =
+  reverse . nubBy ((==) `on` principalId) . reverse
+
+-- | Fail closed on a malformed policy: if any rule targets a resource absent
+-- from the product tree, report it on stderr and exit non-zero rather than
+-- silently evaluating a rule that can never match a real resource.
+guardTargets :: ProductTree -> [Rule] -> IO ()
+guardTargets tree rules =
+  case unknownTargets tree rules of
+    []  -> pure ()
+    bad -> do
+      hPutStrLn stderr
+        ( "plm-access: policy targets resources absent from the tree: "
+            <> intercalate ", " [T.unpack t | ResourceId t <- bad]
+        )
+      exitFailure
 
 usageError :: IO ()
 usageError = do

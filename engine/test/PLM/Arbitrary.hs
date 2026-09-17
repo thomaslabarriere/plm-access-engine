@@ -84,6 +84,13 @@ instance Arbitrary ProductTree where
           [ (1, pure Nothing)
           , (3, Just <$> elements resourceNames)
           ]
+  -- Shrink toward smaller, tamer forests: first by dropping a node entirely,
+  -- then by cutting an edge (repointing a parented node to a root). This lets a
+  -- failing tree counterexample minimise to the fewest nodes and edges that
+  -- still reproduce the failure.
+  shrink (ProductTree m) =
+    [ ProductTree (Map.delete r m) | r <- Map.keys m ]
+      ++ [ ProductTree (Map.insert r Nothing m) | (r, Just _) <- Map.toList m ]
 
 instance Arbitrary Decision where
   arbitrary = Decision <$> arbitrary <*> arbitrary <*> listOf arbitrary

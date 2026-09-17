@@ -14,9 +14,16 @@ testing proves. **I am upfront that this is my first substantial Haskell project
 
 ## 2. The verdict is default-deny, and conflicts resolve deterministically
 
-`decide` returns deny unless a rule grants, and conflicts resolve by, in order: rule
-priority, then specificity (an exact resource beats a subtree; a deeper subtree beats a
-shallower one; a principal beats a group), then **deny-overrides** at a true tie.
+`decide` returns deny unless a rule grants, and conflicts resolve by comparing a ranking
+key `(priority, target-specificity, subject-specificity, effect, ruleId)`, in that order:
+rule priority first; then **target** specificity (an exact resource beats a subtree, a
+deeper subtree beats a shallower one) which outranks **subject** specificity (a principal
+beats a group); then **deny-overrides** at an otherwise-true tie (`Deny > Allow`); then
+`ruleId` purely so the reported deciding rule is deterministic (never affects `granted`).
+
+- **Why target before subject:** a rule written about one specific artifact is a more
+  deliberate statement than a rule written about a person, so it wins. This precedence is
+  a decision, not an accident of tuple order.
 
 - **Why default-deny:** for a system holding aerospace/nuclear IP, the safe default when
   the policy is silent is "no". Granting-by-omission is the failure that leaks IP.
@@ -51,10 +58,11 @@ decisions/eval/diff and emits JSON, and the cockpit renders it.
 - **Why:** the engine must be the single source of truth for a decision. Re-implementing
   the logic in TypeScript to make a prettier UI would be the exact drift this design
   refuses. The cockpit's decision explorer is a pure key lookup into precomputed output.
-- **Enforced, not asserted:** the `plm-access decisions` subcommand regenerates the
-  cockpit's `decisions.json` (a batch over every principal × resource × permission), and
-  `eval`/`diff` produce the other data files, all from one dataset. The claim above is a
-  regeneration step, not a promise.
+- **Enforced, not asserted:** `scripts/regen-cockpit-data.sh` pipes the single
+  `dataset.json` through the engine (`decisions`/`eval`/`diff`) to produce all three
+  cockpit data files, and CI runs it and `git diff --exit-code`s the result. So the
+  committed data cannot drift from what the engine actually decides: if it did, CI fails.
+  The claim above is a build gate, not a promise.
 
 ## 6. Fail closed, everywhere, through one resolver
 

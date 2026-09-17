@@ -13,11 +13,11 @@ module PLM.Engine
   , resolvePrincipal
   , applies
   , permits
+  , unknownTargets
   ) where
 
-import Data.List (maximumBy)
-import qualified Data.Map.Strict as Map
-import Data.Ord (comparing)
+import Data.List (find, maximumBy, nub)
+import Data.Ord (Down (..), comparing)
 
 import PLM.Types
 
@@ -59,11 +59,18 @@ data SubjectSpec = SpecGroupSubject | SpecPrincipalSubject
   deriving (Eq, Ord)
 
 -- | Ranking key for conflict resolution: the largest key wins under 'Ord'.
--- Priority dominates, then target specificity, then subject specificity, and
--- finally the effect. 'Effect' derives @Allow < Deny@, so at an otherwise
--- identical key a 'Deny' outranks an 'Allow' — deny-overrides falls out of the
--- ordering for free, with no special-casing.
-type RuleKey = (Int, TargetSpec, SubjectSpec, Effect)
+-- Priority dominates, then target specificity, then subject specificity, then
+-- the effect. 'Effect' derives @Allow < Deny@, so at an otherwise identical key
+-- a 'Deny' outranks an 'Allow' — deny-overrides falls out of the ordering for
+-- free, with no special-casing.
+--
+-- The final element is the rule id, wrapped in 'Down' so a /smaller/ id wins.
+-- It is a pure tie-break: it sits after 'Effect', so it can only choose among
+-- rules that already agree on priority, specificity and effect. That makes
+-- 'decidingRule' order-independent (an exact tie no longer resolves to whichever
+-- equal rule happened to come last in the list) without touching 'granted' —
+-- the effect still decides that, and deny still wins a genuine tie.
+type RuleKey = (Int, TargetSpec, SubjectSpec, Effect, Down RuleId)
 
 ruleKey :: ProductTree -> Rule -> RuleKey
 ruleKey tree rule =
@@ -71,6 +78,7 @@ ruleKey tree rule =
   , targetSpec (ruleTarget rule)
   , subjectSpec (ruleSubject rule)
   , ruleEffect rule
+  , Down (ruleId rule)
   )
   where
     targetSpec (TResource _) = SpecExact
@@ -108,5 +116,17 @@ decideFor tree principals pid res requested rules =
 -- | Look up a principal in the roster by its id. The single source of truth for
 -- id resolution, so the CLI and the reliability harness cannot disagree.
 resolvePrincipal :: [Principal] -> PrincipalId -> Maybe Principal
-resolvePrincipal principals pid =
-  Map.lookup pid (Map.fromList [(principalId p, p) | p <- principals])
+resolvePrincipal principals pid = find ((== pid) . principalId) principals
+
+-- | Every resource id a rule /targets/ ('TResource' or 'TSubtree') that is not
+-- present in the product tree. 'TAll' targets nothing in particular and is
+-- never reported. An empty result means every rule targets a known resource;
+-- a non-empty one is a malformed policy the CLI refuses to run (fail closed).
+unknownTargets :: ProductTree -> [Rule] -> [ResourceId]
+unknownTargets tree rules =
+  nub [rid | rule <- rules, Just rid <- [targetResource (ruleTarget rule)], rid `notElem` known]
+  where
+    known = treeResources tree
+    targetResource (TResource r) = Just r
+    targetResource (TSubtree r)  = Just r
+    targetResource TAll          = Nothing

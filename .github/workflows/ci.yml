@@ -15,11 +15,27 @@ jobs:
       - uses: actions/checkout@v4
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: "9.8.2"
+          ghc-version: "9.14.1"
           cabal-version: "3.12"
       - run: cabal update
       - run: cabal build all
       - run: cabal test
+
+  # The cockpit's data must be exactly what the engine emits, not hand-edited.
+  # Regenerate it from the engine and fail if it drifts from what's committed.
+  data-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "9.14.1"
+          cabal-version: "3.12"
+      - working-directory: engine
+        run: cabal update && cabal build plm-access
+      - run: ./scripts/regen-cockpit-data.sh
+      - name: Fail if committed cockpit data drifted from the engine
+        run: git diff --exit-code cockpit/src/data/
 
   hlint:
     runs-on: ubuntu-latest

@@ -60,10 +60,14 @@ spec = do
         -- over 'Bool''s ordering. 'classify' keeps the interesting case visible.
         in classify withDeny "deny-still-granted" (withDeny <= without)
 
-    it "the granted decision is independent of rule order" $
+    it "the decision (grant AND deciding rule) is independent of rule order" $
       property $ \tree prin res perm rs ->
-        granted (decide (tree :: ProductTree) prin res perm rs)
-          === granted (decide tree prin res perm (reverse rs))
+        -- Both the outcome and the audited \"why\" must be order-independent: the
+        -- ruleId tie-break in 'RuleKey' means an exact key tie no longer resolves
+        -- to whichever equal rule came last in the list.
+        let d  = decide (tree :: ProductTree) prin res perm rs
+            d' = decide tree prin res perm (reverse rs)
+        in (granted d === granted d') .&&. (decidingRule d === decidingRule d')
 
     it "every rule in the trace genuinely applies to the request" $
       property $ \tree prin res perm rs0 ->
@@ -131,3 +135,15 @@ spec = do
           d = decide testTree p1 nodeA Write [other]
       granted d `shouldBe` False
       applicable d `shouldBe` []
+
+  describe "unknownTargets (ingestion validation)" $ do
+    it "reports a rule that targets a resource absent from the tree" $ do
+      let ghostRes = ResourceId "ghost"
+          bad  = mkRule "b" (SubjPrincipal (PrincipalId "p1")) (TResource ghostRes) Read Allow 1
+          good = mkRule "g" (SubjPrincipal (PrincipalId "p1")) (TResource nodeA) Read Allow 1
+      unknownTargets testTree [good, bad] `shouldBe` [ghostRes]
+
+    it "accepts rules whose targets are all in the tree (TAll included)" $ do
+      let sub = mkRule "s" (SubjGroup (GroupId "g1")) (TSubtree root) Read Allow 1
+          allR = mkRule "a" (SubjPrincipal (PrincipalId "p1")) TAll Read Allow 1
+      unknownTargets testTree [sub, allR] `shouldBe` []
